@@ -6,7 +6,7 @@ const path = require('path');
 const OpenCC = require('opencc-js');
 
 const app = express();
-const port = 3000;
+const port = process.env.PORT || 3000;
 
 // 百度OCR API配置
 const API_KEY = 'p9lPOjASq8eVETBigjyg8wIu';
