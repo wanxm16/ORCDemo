@@ -119,6 +119,11 @@
             margin-bottom: 15px;
         }
         
+        .upload-area.has-image .upload-icon,
+        .upload-area.has-image .upload-text {
+            display: none;
+        }
+        
         .upload-text {
             color: #4b5563;
             margin-bottom: 20px;
@@ -674,6 +679,7 @@
                 imagePreview.style.display = 'block';
                 processBtn.disabled = false;
                 selectBtn.style.display = 'none'; // 隐藏选择图片按钮
+                uploadArea.classList.add('has-image'); // 添加已有图片的类
                 hideMessages();
             };
             reader.readAsDataURL(file);
@@ -764,6 +770,7 @@
             imagePreview.style.display = 'none';
             processBtn.disabled = true;
             selectBtn.style.display = 'inline-flex'; // 恢复显示选择图片按钮
+            uploadArea.classList.remove('has-image'); // 移除已有图片的类
             clearResults();
         }
         
