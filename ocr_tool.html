@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>繁体字OCR识别与简体转换工具（OpenCC版）</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        
+        header {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        header h1 {
+            font-size: 2rem;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+        
+        header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+        
+        .status-bar {
+            background: #f3f4f6;
+            padding: 10px 30px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #ef4444;
+        }
+        
+        .status-dot.connected {
+            background: #10b981;
+        }
+        
+        .main-content {
+            display: flex;
+            min-height: 600px;
+        }
+        
+        .left-panel, .right-panel {
+            flex: 1;
+            padding: 30px;
+        }
+        
+        .left-panel {
+            border-right: 1px solid #e5e7eb;
+        }
+        
+        .panel-title {
+            font-size: 1.3rem;
+            color: #1f2937;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #667eea;
+        }
+        
+        .upload-area {
+            border: 2px dashed #667eea;
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            background: #f8f9ff;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .upload-area:hover {
+            background: #eff1ff;
+            border-color: #764ba2;
+        }
+        
+        .upload-area.dragover {
+            background: #e0e3ff;
+            border-color: #764ba2;
+        }
+        
+        .upload-icon {
+            font-size: 3rem;
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+        
+        .upload-text {
+            color: #4b5563;
+            margin-bottom: 20px;
+        }
+        
+        .file-input {
+            display: none;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            font-size: 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .btn-process {
+            width: 100%;
+            margin-top: 20px;
+            padding: 15px;
+            font-size: 1.1rem;
+            justify-content: center;
+        }
+        
+        .image-preview {
+            margin-top: 20px;
+            display: none;
+        }
+        
+        .preview-container {
+            position: relative;
+            display: inline-block;
+        }
+        
+        .preview-img {
+            max-width: 100%;
+            max-height: 300px;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        .remove-image {
+            position: absolute;
+            top: -10px;
+            right: -10px;
+            background: #ef4444;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            cursor: pointer;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+        
+        .remove-image:hover {
+            background: #dc2626;
+            transform: scale(1.1);
+        }
+        
+        .result-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .tab-btn {
+            padding: 8px 16px;
+            border: 1px solid #e5e7eb;
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .tab-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+        
+        .result-content {
+            display: none;
+        }
+        
+        .result-content.active {
+            display: block;
+        }
+        
+        .result-area {
+            min-height: 400px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 20px;
+            background: #f9fafb;
+            font-size: 1.1rem;
+            line-height: 1.8;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            overflow-y: auto;
+            max-height: 500px;
+        }
+        
+        .result-area:empty::before {
+            content: "识别结果将显示在这里...";
+            color: #9ca3af;
+            font-style: italic;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+        }
+        
+        .spinner {
+            border: 3px solid #f3f4f6;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .action-buttons {
+            margin-top: 15px;
+            display: flex;
+            gap: 10px;
+        }
+        
+        .btn-secondary {
+            background: #6b7280;
+            padding: 10px 20px;
+            font-size: 0.9rem;
+        }
+        
+        .btn-secondary:hover {
+            background: #4b5563;
+        }
+        
+        .error-message {
+            color: #ef4444;
+            padding: 15px;
+            background: #fee;
+            border-radius: 8px;
+            margin-top: 15px;
+            display: none;
+        }
+        
+        .success-message {
+            color: #10b981;
+            padding: 15px;
+            background: #d1fae5;
+            border-radius: 8px;
+            margin-top: 15px;
+            display: none;
+        }
+        
+        .char-count {
+            text-align: right;
+            color: #6b7280;
+            margin-top: 10px;
+            font-size: 0.9rem;
+        }
+        
+        .tips {
+            background: #f0f9ff;
+            border-left: 4px solid #3b82f6;
+            padding: 15px;
+            margin-top: 20px;
+            border-radius: 4px;
+        }
+        
+        .tips h4 {
+            color: #1e40af;
+            margin-bottom: 8px;
+        }
+        
+        .tips ul {
+            list-style: none;
+            color: #3b82f6;
+        }
+        
+        .tips li {
+            padding: 4px 0;
+        }
+        
+        .tips li::before {
+            content: "✓ ";
+            font-weight: bold;
+            margin-right: 5px;
+        }
+        
+        footer {
+            text-align: center;
+            padding: 20px;
+            color: #6b7280;
+            border-top: 1px solid #e5e7eb;
+            background: #f9fafb;
+        }
+        
+        .opencc-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            background: #f3f4f6;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            color: #4b5563;
+        }
+        
+        .opencc-badge::before {
+            content: "🔤";
+            font-size: 1rem;
+        }
+        
+        @media (max-width: 768px) {
+            .main-content {
+                flex-direction: column;
+            }
+            
+            .left-panel {
+                border-right: none;
+                border-bottom: 1px solid #e5e7eb;
+            }
+            
+            .action-buttons {
+                flex-direction: column;
+            }
+            
+            .btn-secondary {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🔤 繁体字OCR识别与简体转换工具</h1>
+            <p>上传繁体字图片，智能识别并转换为简体中文</p>
+        </header>
+        
+        <div class="status-bar">
+            <div class="status-indicator">
+                <span class="status-dot" id="statusDot"></span>
+                <span id="statusText">检查服务器连接...</span>
+            </div>
+            <div>
+                <span class="opencc-badge">Powered by OpenCC</span>
+            </div>
+        </div>
+        
+        <div class="main-content">
+            <div class="left-panel">
+                <h2 class="panel-title">📤 图片上传</h2>
+                
+                <div class="upload-area" id="uploadArea">
+                    <div class="upload-icon">📷</div>
+                    <div class="upload-text">
+                        <p><strong>点击上传或拖拽图片到此处</strong></p>
+                        <p>支持 JPG、PNG 格式，最大 5MB</p>
+                    </div>
+                    <button class="btn" id="selectBtn">选择图片</button>
+                    <input type="file" id="fileInput" class="file-input" accept="image/*">
+                </div>
+                
+                <div class="image-preview" id="imagePreview">
+                    <div class="preview-container">
+                        <img id="previewImg" class="preview-img" alt="预览图片">
+                        <button class="remove-image" onclick="clearImage()" title="删除图片">×</button>
+                    </div>
+                </div>
+                
+                <!-- 版式选择 -->
+                <div class="layout-options" style="margin-top: 20px; padding: 15px; background: #f8f9ff; border-radius: 8px;">
+                    <h4 style="margin: 0 0 10px 0; color: #4b5563;">📐 版式设置</h4>
+                    
+                    <div style="margin-bottom: 10px;">
+                        <label style="display: block; margin-bottom: 5px; color: #6b7280;">文字方向：</label>
+                        <div style="display: flex; gap: 10px;">
+                            <label style="display: flex; align-items: center; cursor: pointer;">
+                                <input type="radio" name="textDirection" value="vertical" checked style="margin-right: 5px;">
+                                <span>竖排文字（古诗词）</span>
+                            </label>
+                            <label style="display: flex; align-items: center; cursor: pointer;">
+                                <input type="radio" name="textDirection" value="horizontal" style="margin-right: 5px;">
+                                <span>横排文字</span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label style="display: block; margin-bottom: 5px; color: #6b7280;">阅读方向：</label>
+                        <div style="display: flex; gap: 10px;">
+                            <label style="display: flex; align-items: center; cursor: pointer;">
+                                <input type="radio" name="readingDirection" value="rtl" checked style="margin-right: 5px;">
+                                <span>从右到左 ←</span>
+                            </label>
+                            <label style="display: flex; align-items: center; cursor: pointer;">
+                                <input type="radio" name="readingDirection" value="ltr" style="margin-right: 5px;">
+                                <span>从左到右 →</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                
+                <button class="btn btn-process" id="processBtn" disabled>
+                    🚀 开始识别与转换
+                </button>
+                
+                <div class="error-message" id="errorMessage"></div>
+                <div class="success-message" id="successMessage"></div>
+                
+                <div class="tips">
+                    <h4>使用提示：</h4>
+                    <ul>
+                        <li>支持繁体中文图片识别</li>
+                        <li>使用OpenCC专业库进行繁简转换</li>
+                        <li>支持古诗词竖排文字识别</li>
+                        <li>可选择文字方向和阅读顺序</li>
+                        <li>建议使用清晰的图片</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="right-panel">
+                <h2 class="panel-title">📄 识别结果</h2>
+                
+                <div class="result-tabs">
+                    <button class="tab-btn active" data-tab="simplified">简体中文</button>
+                    <button class="tab-btn" data-tab="traditional">繁体原文</button>
+                </div>
+                
+                <div class="loading" id="loading">
+                    <div class="spinner"></div>
+                    <p>正在识别并转换中，请稍候...</p>
+                </div>
+                
+                <div class="result-content active" id="simplifiedContent">
+                    <div class="result-area" id="simplifiedResult"></div>
+                    <div class="char-count">
+                        字符数：<span id="simplifiedCharCount">0</span>
+                    </div>
+                </div>
+                
+                <div class="result-content" id="traditionalContent">
+                    <div class="result-area" id="traditionalResult"></div>
+                    <div class="char-count">
+                        字符数：<span id="traditionalCharCount">0</span>
+                    </div>
+                </div>
+                
+                <div class="action-buttons" id="actionButtons" style="display: none;">
+                    <button class="btn btn-secondary" id="copyBtn">📋 复制结果</button>
+                    <button class="btn btn-secondary" onclick="clearAll()">🗑️ 清除</button>
+                </div>
+            </div>
+        </div>
+        
+        <footer>
+            <p>基于百度OCR API | 繁简转换使用OpenCC专业库 | 本地服务器运行中</p>
+        </footer>
+    </div>
+
+    <script>
+        // 全局变量
+        let selectedFile = null;
+        let currentResults = {
+            traditional: '',
+            simplified: ''
+        };
+        
+        // DOM元素
+        const fileInput = document.getElementById('fileInput');
+        const selectBtn = document.getElementById('selectBtn');
+        const uploadArea = document.getElementById('uploadArea');
+        const imagePreview = document.getElementById('imagePreview');
+        const previewImg = document.getElementById('previewImg');
+        const processBtn = document.getElementById('processBtn');
+        const simplifiedResult = document.getElementById('simplifiedResult');
+        const traditionalResult = document.getElementById('traditionalResult');
+        const loading = document.getElementById('loading');
+        const errorMessage = document.getElementById('errorMessage');
+        const successMessage = document.getElementById('successMessage');
+        const simplifiedCharCount = document.getElementById('simplifiedCharCount');
+        const traditionalCharCount = document.getElementById('traditionalCharCount');
+        const statusDot = document.getElementById('statusDot');
+        const statusText = document.getElementById('statusText');
+        const actionButtons = document.getElementById('actionButtons');
+        const copyBtn = document.getElementById('copyBtn');
+        
+        // 检查服务器连接
+        async function checkServerConnection() {
+            try {
+                const response = await fetch('/api/health');
+                const data = await response.json();
+                
+                if (data.status === 'ok') {
+                    statusDot.classList.add('connected');
+                    statusText.textContent = '服务器已连接';
+                } else {
+                    throw new Error('服务器状态异常');
+                }
+            } catch (error) {
+                statusDot.classList.remove('connected');
+                statusText.textContent = '服务器未连接';
+                showError('请确保服务器正在运行！运行命令：npm start');
+            }
+        }
+        
+        // 页面加载时检查连接
+        window.addEventListener('load', () => {
+            checkServerConnection();
+            // 每30秒检查一次连接
+            setInterval(checkServerConnection, 30000);
+        });
+        
+        // 事件监听 - 点击上传区域
+        uploadArea.addEventListener('click', (e) => {
+            // 如果点击的不是按钮，且没有选择文件时，才触发文件选择
+            if (!e.target.closest('button') && !selectedFile) {
+                fileInput.click();
+            }
+        });
+        
+        // 事件监听 - 选择按钮
+        selectBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            fileInput.click();
+        });
+        
+        // 拖拽上传
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            // 只有没有文件时才显示拖拽效果
+            if (!selectedFile) {
+                uploadArea.classList.add('dragover');
+            }
+        });
+        
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+        
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            
+            // 如果已有文件，不处理拖拽
+            if (selectedFile) {
+                return;
+            }
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        });
+        
+        // 文件选择事件
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFile(e.target.files[0]);
+            }
+        });
+        
+        // 处理按钮点击
+        processBtn.addEventListener('click', processImage);
+        
+        // 标签切换
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const tab = btn.dataset.tab;
+                
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                
+                document.querySelectorAll('.result-content').forEach(content => {
+                    content.classList.remove('active');
+                });
+                
+                if (tab === 'simplified') {
+                    document.getElementById('simplifiedContent').classList.add('active');
+                } else {
+                    document.getElementById('traditionalContent').classList.add('active');
+                }
+            });
+        });
+        
+        // 复制按钮
+        copyBtn.addEventListener('click', () => {
+            const activeTab = document.querySelector('.tab-btn.active').dataset.tab;
+            const textToCopy = activeTab === 'simplified' ? currentResults.simplified : currentResults.traditional;
+            
+            navigator.clipboard.writeText(textToCopy).then(() => {
+                showSuccess('已复制到剪贴板！');
+            }).catch(() => {
+                showError('复制失败，请手动选择复制');
+            });
+        });
+        
+        // 处理文件
+        function handleFile(file) {
+            // 验证文件类型
+            if (!file.type.match('image.*')) {
+                showError('请选择图片文件！');
+                return;
+            }
+            
+            // 验证文件大小
+            if (file.size > 5 * 1024 * 1024) {
+                showError('文件大小不能超过5MB！');
+                return;
+            }
+            
+            selectedFile = file;
+            
+            // 显示预览
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                previewImg.src = e.target.result;
+                imagePreview.style.display = 'block';
+                processBtn.disabled = false;
+                selectBtn.style.display = 'none'; // 隐藏选择图片按钮
+                hideMessages();
+            };
+            reader.readAsDataURL(file);
+        }
+        
+        // 处理图片
+        async function processImage() {
+            if (!selectedFile) return;
+            
+            try {
+                // 显示加载状态
+                loading.style.display = 'block';
+                processBtn.disabled = true;
+                hideMessages();
+                clearResults();
+                
+                // 获取版式设置
+                const textDirection = document.querySelector('input[name="textDirection"]:checked').value;
+                const readingDirection = document.querySelector('input[name="readingDirection"]:checked').value;
+                const verticalText = textDirection === 'vertical';
+                
+                // 将图片转为base64
+                const base64 = await fileToBase64(selectedFile);
+                
+                // 调用服务器API
+                const response = await fetch('/api/ocr', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        image: base64,
+                        verticalText: verticalText,
+                        readingDirection: readingDirection
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (!data.success) {
+                    throw new Error(data.error || '识别失败');
+                }
+                
+                // 使用服务器返回的繁体原文和简体转换结果
+                currentResults.traditional = data.text;
+                currentResults.simplified = data.simplifiedText || data.text;  // 如果没有简体文本，使用原文
+                
+                // 显示结果
+                traditionalResult.textContent = currentResults.traditional;
+                simplifiedResult.textContent = currentResults.simplified;
+                
+                // 更新字符数
+                traditionalCharCount.textContent = currentResults.traditional.length;
+                simplifiedCharCount.textContent = currentResults.simplified.length;
+                
+                // 显示操作按钮
+                actionButtons.style.display = 'flex';
+                
+                showSuccess('识别成功！');
+                
+            } catch (error) {
+                console.error('处理错误:', error);
+                showError(error.message || '处理失败，请重试');
+            } finally {
+                loading.style.display = 'none';
+                processBtn.disabled = false;
+            }
+        }
+        
+        // 文件转Base64
+        function fileToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => {
+                    // 去掉data:image/...;base64,前缀
+                    const base64 = reader.result.split(',')[1];
+                    resolve(base64);
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+        
+        // 清除图片
+        function clearImage() {
+            selectedFile = null;
+            fileInput.value = '';
+            imagePreview.style.display = 'none';
+            processBtn.disabled = true;
+            selectBtn.style.display = 'inline-flex'; // 恢复显示选择图片按钮
+            clearResults();
+        }
+        
+        // 清除结果
+        function clearResults() {
+            currentResults.traditional = '';
+            currentResults.simplified = '';
+            traditionalResult.textContent = '';
+            simplifiedResult.textContent = '';
+            traditionalCharCount.textContent = '0';
+            simplifiedCharCount.textContent = '0';
+            actionButtons.style.display = 'none';
+        }
+        
+        // 清除所有
+        function clearAll() {
+            clearImage();
+            clearResults();
+            hideMessages();
+        }
+        
+        // 显示错误
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorMessage.style.display = 'block';
+            successMessage.style.display = 'none';
+        }
+        
+        // 显示成功
+        function showSuccess(message) {
+            successMessage.textContent = message;
+            successMessage.style.display = 'block';
+            errorMessage.style.display = 'none';
+            
+            // 3秒后自动隐藏
+            setTimeout(() => {
+                successMessage.style.display = 'none';
+            }, 3000);
+        }
+        
+        // 隐藏消息
+        function hideMessages() {
+            errorMessage.style.display = 'none';
+            successMessage.style.display = 'none';
+        }
+    </script>
+</body>
+</html>
