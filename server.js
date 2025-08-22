@@ -18,7 +18,12 @@ const OCR_URL = 'https://aip.baidubce.com/rest/2.0/ocr/v1/general_basic';
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
-app.use(express.static('.'));
+app.use(express.static(__dirname));
+
+// 根路由 - 返回主页
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'ocr_tool.html'));
+});
 
 // 配置multer用于处理文件上传
 const storage = multer.memoryStorage();
